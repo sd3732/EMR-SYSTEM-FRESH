@@ -1,0 +1,17 @@
+=== CLINICAL FEATURES VALIDATION ===
+Checking drug interaction service...
+Checking available services...
+audit.service.js
+cache-analytics.service.js
+cache.service.js
+critical-values.service.js
+database-health.service.js
+drug-interaction.service.js
+encryption.service.js
+encryption.test.js
+hl7-parser.service.js
+lab.service.js
+prescription.service.js
+session.service.js
+Testing medication/drug interaction endpoints...
+

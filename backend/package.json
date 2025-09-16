@@ -1,0 +1,36 @@
+{
+  "name": "emr-backend",
+  "version": "0.1.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "NODE_ENV=test jest",
+    "test:security": "NODE_ENV=test jest tests/security",
+    "test:integration": "NODE_ENV=test jest tests/integration",
+    "test:performance": "NODE_ENV=test jest tests/performance",
+    "test:coverage": "NODE_ENV=test jest --coverage",
+    "test:watch": "NODE_ENV=test jest --watch",
+    "test:ci": "NODE_ENV=test jest --coverage --ci --watchAll=false"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.7.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "uuid": "^13.0.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^8.4.1",
+    "@jest/globals": "^29.7.0",
+    "jest": "^29.7.0",
+    "jest-html-reporters": "^3.1.7",
+    "nodemon": "^3.1.4",
+    "supertest": "^6.3.4"
+  }
+}

@@ -1,0 +1,4 @@
+=== PERFORMANCE VALIDATION ===
+Testing API response times...
+Patient search: 0.000264s
+Encounters endpoint: 0.000275s

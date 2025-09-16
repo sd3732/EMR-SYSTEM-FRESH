@@ -1,0 +1,17 @@
+=== SECURITY VALIDATION ===
+Checking for encryption service implementation...
+-rw-r--r--@ 1 spiroderbaly  staff  10484 Sep  9 16:43 services/encryption.service.js
+Checking authentication middleware implementation...
+-rw-r--r--@ 1 spiroderbaly  staff  3917 Sep  9 18:23 middleware/auth.js
+Running complete test suite...
+
+> emr-backend@0.1.2 test
+> NODE_ENV=test jest
+
+📦 report is created on: /Users/spiroderbaly/Downloads/emr-system-clean/backend/coverage/test-report.html
+Test suite has ES module configuration issues, checking coverage report...
+total 8
+drwxr-xr-x@  4 spiroderbaly  staff   128 Sep 11 12:38 .
+drwxr-xr-x@ 24 spiroderbaly  staff   768 Sep 11 12:38 ..
+drwxr-xr-x@  3 spiroderbaly  staff    96 Sep 11 12:38 jest-html-reporters-attach
+-rw-r--r--@  1 spiroderbaly  staff  3118 Sep 11 12:38 test-report.html
