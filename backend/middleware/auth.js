@@ -6,59 +6,32 @@ const loginAttempts = new Map();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-export const authenticateToken = async (req, res, next) => {
+export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-
-    return res.status(401).json({ 
-      ok: false, 
-      error: 'Access token required' 
-    });
+    console.log('No token provided in request');
+    return res.status(401).json({ ok: false, error: 'No token provided' });
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Fetch current user data from database
-    const result = await pool.query(
-      'SELECT id, email, first_name, last_name, role, active FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+  // Use the same secret defined at module level
 
-    if (result.rows.length === 0) {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      console.error('Token verification failed:', err.message);
 
-      return res.status(401).json({ 
-        ok: false, 
-        error: 'User not found' 
+      // SECURITY: NO development bypasses for token expiration - HIPAA compliance requires strict token validation
+
+      return res.status(403).json({
+        ok: false,
+        error: err.name === 'TokenExpiredError' ? 'Token expired - please login again' : 'Invalid token'
       });
     }
 
-    const user = result.rows[0];
-    
-    if (!user.active) {
-
-      return res.status(401).json({ 
-        ok: false, 
-        error: 'Account is inactive' 
-      });
-    }
-
-    // Add user info to request object
     req.user = user;
-    
-    // Log successful authentication (will be done by audit middleware)
     next();
-  } catch (err) {
-    console.error('Token verification error:', err);
-    
-
-    return res.status(403).json({ 
-      ok: false, 
-      error: 'Invalid or expired token' 
-    });
-  }
+  });
 };
 
 // Rate limiting middleware for login attempts

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/rbac.js';
+import { auditPHIAccess, auditSearchOperation } from '../middleware/phiAuditMiddleware.js';
 
 const router = Router();
 
@@ -16,7 +17,8 @@ const router = Router();
  */
 
 /* Get clinical notes for an encounter */
-router.get('/encounters/:encounterId/notes', authenticateToken, checkPermission('visits:read'), async (req, res) => {
+router.get('/encounters/:encounterId/notes', authenticateToken, checkPermission('visits:read'),
+  auditPHIAccess({ resourceType: 'clinical_note', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const encounterId = Number(req.params.encounterId);
     if (!Number.isFinite(encounterId)) {
@@ -58,7 +60,8 @@ router.get('/encounters/:encounterId/notes', authenticateToken, checkPermission(
 });
 
 /* Create clinical notes for an encounter */
-router.post('/encounters/:encounterId/notes', authenticateToken, checkPermission('visits:write'), async (req, res) => {
+router.post('/encounters/:encounterId/notes', authenticateToken, checkPermission('visits:write'),
+  auditPHIAccess({ resourceType: 'clinical_note', action: 'CREATE', failOnAuditError: true }), async (req, res) => {
   try {
     const encounterId = Number(req.params.encounterId);
     if (!Number.isFinite(encounterId)) {
@@ -146,7 +149,8 @@ router.post('/encounters/:encounterId/notes', authenticateToken, checkPermission
 });
 
 /* Update clinical notes */
-router.put('/encounters/:encounterId/notes/:noteId', authenticateToken, checkPermission('visits:write'), async (req, res) => {
+router.put('/encounters/:encounterId/notes/:noteId', authenticateToken, checkPermission('visits:write'),
+  auditPHIAccess({ resourceType: 'clinical_note', action: 'UPDATE', failOnAuditError: true }), async (req, res) => {
   try {
     const encounterId = Number(req.params.encounterId);
     const noteId = Number(req.params.noteId);

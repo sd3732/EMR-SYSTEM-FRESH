@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import pool from '../db/index.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { checkPermission } from '../middleware/rbac.js';
+import { auditPHIAccess } from '../middleware/phiAuditMiddleware.js';
 
 const router = Router();
 
@@ -16,7 +19,8 @@ const router = Router();
  */
 
 /* Create new prescription */
-router.post('/prescriptions', async (req, res) => {
+router.post('/prescriptions', authenticateToken, checkPermission('prescriptions:create'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'CREATE', failOnAuditError: true }), async (req, res) => {
   try {
     const {
       patient_id,
@@ -113,7 +117,8 @@ router.post('/prescriptions', async (req, res) => {
 });
 
 /* Check prescription against patient allergies */
-router.post('/prescriptions/check-allergies', async (req, res) => {
+router.post('/prescriptions/check-allergies', authenticateToken, checkPermission('prescriptions:read'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const {
       patient_id,
@@ -177,7 +182,8 @@ router.post('/prescriptions/check-allergies', async (req, res) => {
 });
 
 /* Document override decisions with reasoning */
-router.post('/prescriptions/override', async (req, res) => {
+router.post('/prescriptions/override', authenticateToken, checkPermission('prescriptions:create'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'CREATE', failOnAuditError: true }), async (req, res) => {
   try {
     const {
       patient_id,
@@ -299,7 +305,8 @@ router.post('/prescriptions/override', async (req, res) => {
 });
 
 /* Get alternative medications for contraindicated drugs */
-router.get('/medications/:id/alternatives', async (req, res) => {
+router.get('/medications/:id/alternatives', authenticateToken, checkPermission('medications:read'),
+  auditPHIAccess({ resourceType: 'medication', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const medicationId = Number(req.params.id);
     const { drug_class } = req.query;
@@ -335,7 +342,8 @@ router.get('/medications/:id/alternatives', async (req, res) => {
 });
 
 /* Get patient's prescriptions */
-router.get('/patients/:id/prescriptions', async (req, res) => {
+router.get('/patients/:id/prescriptions', authenticateToken, checkPermission('prescriptions:read'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const patientId = Number(req.params.id);
     const { 
@@ -432,7 +440,8 @@ router.get('/patients/:id/prescriptions', async (req, res) => {
 });
 
 /* Get specific prescription */
-router.get('/prescriptions/:id', async (req, res) => {
+router.get('/prescriptions/:id', authenticateToken, checkPermission('prescriptions:read'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {
@@ -479,7 +488,8 @@ router.get('/prescriptions/:id', async (req, res) => {
 });
 
 /* Update prescription */
-router.put('/prescriptions/:id', async (req, res) => {
+router.put('/prescriptions/:id', authenticateToken, checkPermission('prescriptions:write'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'UPDATE', failOnAuditError: true }), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {
@@ -611,7 +621,8 @@ router.put('/prescriptions/:id', async (req, res) => {
 });
 
 /* Check drug interactions for a prescription */
-router.get('/prescriptions/:id/interactions', async (req, res) => {
+router.get('/prescriptions/:id/interactions', authenticateToken, checkPermission('prescriptions:read'),
+  auditPHIAccess({ resourceType: 'prescription', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {

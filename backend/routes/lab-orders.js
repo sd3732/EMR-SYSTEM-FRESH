@@ -1,11 +1,15 @@
 // routes/lab-orders.js
 import express from 'express';
 import db from '../db/index.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { checkPermission } from '../middleware/rbac.js';
+import { auditPHIAccess } from '../middleware/phiAuditMiddleware.js';
 
 const router = express.Router();
 
 // GET /api/encounters/:encounterId/lab-orders - get lab orders for an encounter
-router.get('/encounters/:encounterId/lab-orders', async (req, res) => {
+router.get('/encounters/:encounterId/lab-orders', authenticateToken, checkPermission('lab_orders:read'),
+  auditPHIAccess({ resourceType: 'lab_order', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const { encounterId } = req.params;
 
@@ -46,7 +50,8 @@ router.get('/encounters/:encounterId/lab-orders', async (req, res) => {
 });
 
 // POST /api/encounters/:encounterId/lab-orders - create lab orders for an encounter
-router.post('/encounters/:encounterId/lab-orders', async (req, res) => {
+router.post('/encounters/:encounterId/lab-orders', authenticateToken, checkPermission('lab_orders:create'),
+  auditPHIAccess({ resourceType: 'lab_order', action: 'CREATE', failOnAuditError: true }), async (req, res) => {
   try {
     const { encounterId } = req.params;
     const { 
@@ -143,7 +148,8 @@ router.post('/encounters/:encounterId/lab-orders', async (req, res) => {
 });
 
 // PUT /api/lab-orders/:orderId - update lab order status
-router.put('/lab-orders/:orderId', async (req, res) => {
+router.put('/lab-orders/:orderId', authenticateToken, checkPermission('lab_orders:write'),
+  auditPHIAccess({ resourceType: 'lab_order', action: 'UPDATE', failOnAuditError: true }), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { 
@@ -203,7 +209,8 @@ router.put('/lab-orders/:orderId', async (req, res) => {
 });
 
 // DELETE /api/lab-orders/:orderId - cancel lab order
-router.delete('/lab-orders/:orderId', async (req, res) => {
+router.delete('/lab-orders/:orderId', authenticateToken, checkPermission('lab_orders:delete'),
+  auditPHIAccess({ resourceType: 'lab_order', action: 'DELETE', failOnAuditError: true }), async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -237,7 +244,8 @@ router.delete('/lab-orders/:orderId', async (req, res) => {
 });
 
 // GET /api/patients/:patientId/lab-orders - get all lab orders for a patient
-router.get('/patients/:patientId/lab-orders', async (req, res) => {
+router.get('/patients/:patientId/lab-orders', authenticateToken, checkPermission('lab_orders:read'),
+  auditPHIAccess({ resourceType: 'lab_order', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const { patientId } = req.params;
     const { status, limit = 50, offset = 0 } = req.query;
@@ -289,7 +297,8 @@ router.get('/patients/:patientId/lab-orders', async (req, res) => {
 });
 
 // GET /api/lab-orders/:orderId/results - get results for a lab order
-router.get('/lab-orders/:orderId/results', async (req, res) => {
+router.get('/lab-orders/:orderId/results', authenticateToken, checkPermission('lab_results:read'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const { orderId } = req.params;
 

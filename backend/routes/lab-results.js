@@ -1,11 +1,15 @@
 // routes/lab-results.js
 import express from 'express';
 import db from '../db/index.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { checkPermission } from '../middleware/rbac.js';
+import { auditPHIAccess } from '../middleware/phiAuditMiddleware.js';
 
 const router = express.Router();
 
 // POST /api/results - process incoming lab results
-router.post('/results', async (req, res) => {
+router.post('/results', authenticateToken, checkPermission('lab_results:create'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'CREATE', failOnAuditError: true }), async (req, res) => {
   try {
     const {
       patient_id,
@@ -68,7 +72,8 @@ router.post('/results', async (req, res) => {
 });
 
 // POST /api/results/batch - process multiple results at once
-router.post('/results/batch', async (req, res) => {
+router.post('/results/batch', authenticateToken, checkPermission('lab_results:create'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'BULK_CREATE', failOnAuditError: true }), async (req, res) => {
   try {
     const { results: resultsData } = req.body;
 
@@ -161,7 +166,8 @@ router.post('/results/batch', async (req, res) => {
 });
 
 // GET /api/patients/:patientId/results - get patient result history with trending
-router.get('/patients/:patientId/results', async (req, res) => {
+router.get('/patients/:patientId/results', authenticateToken, checkPermission('lab_results:read'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const { patientId } = req.params;
     const { 
@@ -260,7 +266,8 @@ router.get('/patients/:patientId/results', async (req, res) => {
 });
 
 // GET /api/results/:resultId - get specific result details
-router.get('/results/:resultId', async (req, res) => {
+router.get('/results/:resultId', authenticateToken, checkPermission('lab_results:read'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const { resultId } = req.params;
 
@@ -304,7 +311,8 @@ router.get('/results/:resultId', async (req, res) => {
 });
 
 // GET /api/results/notifications - get pending result notifications
-router.get('/results/notifications', async (req, res) => {
+router.get('/results/notifications', authenticateToken, checkPermission('lab_results:read'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const { 
       provider_id,
@@ -376,7 +384,8 @@ router.get('/results/notifications', async (req, res) => {
 });
 
 // PUT /api/results/notifications/:notificationId/acknowledge - acknowledge notification
-router.put('/results/notifications/:notificationId/acknowledge', async (req, res) => {
+router.put('/results/notifications/:notificationId/acknowledge', authenticateToken, checkPermission('lab_results:write'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'UPDATE', failOnAuditError: true }), async (req, res) => {
   try {
     const { notificationId } = req.params;
     const { acknowledged_by } = req.body;
@@ -411,7 +420,8 @@ router.put('/results/notifications/:notificationId/acknowledge', async (req, res
 });
 
 // GET /api/patients/:patientId/results/trending/:componentCode - get trending data for specific component
-router.get('/patients/:patientId/results/trending/:componentCode', async (req, res) => {
+router.get('/patients/:patientId/results/trending/:componentCode', authenticateToken, checkPermission('lab_results:read'),
+  auditPHIAccess({ resourceType: 'lab_result', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const { patientId, componentCode } = req.params;
     const { months_back = 12 } = req.query;

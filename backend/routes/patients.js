@@ -4,6 +4,8 @@ import pool from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/rbac.js';
 import { cacheGet, invalidateCache, addCacheHeaders } from '../middleware/cache.middleware.js';
+import PatientManagementService from '../services/PatientManagementService.js';
+import { auditPHIAccess, auditSearchOperation } from '../middleware/phiAuditMiddleware.js';
 
 const router = Router();
 
@@ -24,7 +26,9 @@ function asJsonb(v) {
 }
 
 /* ---------- List patients with optimization ---------- */
-router.get('/patients', authenticateToken, checkPermission('patients:read'), 
+router.get('/patients', authenticateToken, checkPermission('patients:read'),
+  auditPHIAccess({ resourceType: 'patient', action: 'LIST', failOnAuditError: true }),
+  auditSearchOperation('patient'),
   addCacheHeaders(), cacheGet('patients'), async (req, res) => {
   try {
     const { search, limit = 500, include_provider = 'false', include_insurance = 'false' } = req.query;
@@ -105,7 +109,8 @@ router.get('/patients', authenticateToken, checkPermission('patients:read'),
 });
 
 /* ---------- Get one patient ---------- */
-router.get('/patients/:id', authenticateToken, checkPermission('patients:read'), 
+router.get('/patients/:id', authenticateToken, checkPermission('patients:read'),
+  auditPHIAccess({ resourceType: 'patient', action: 'VIEW', failOnAuditError: true }), 
   addCacheHeaders(), cacheGet('patient-demographics'), async (req, res) => {
   const id = toInt(req.params.id);
   if (!Number.isFinite(id)) {
@@ -131,60 +136,53 @@ router.get('/patients/:id', authenticateToken, checkPermission('patients:read'),
 });
 
 /* ---------- Create patient ---------- */
-router.post('/patients', authenticateToken, checkPermission('patients:create'), 
+router.post('/patients', authenticateToken, checkPermission('patients:create'),
+  auditPHIAccess({ resourceType: 'patient', action: 'CREATE', failOnAuditError: true }),
   invalidateCache('patients', ['emr:patients:*', 'emr:patient-demographics:*']), async (req, res) => {
-  const {
-    first_name,
-    last_name,
-    dob,
-    insurance_id,
-    provider_id,
-    mrn,
-    identifiers,
-  } = req.body ?? {};
-
-  if (!first_name || !last_name) {
-    return res
-      .status(400)
-      .json({ ok: false, error: 'first_name and last_name are required' });
-  }
-
-  const providerIdNum = Number.isFinite(toInt(provider_id)) ? Number(provider_id) : null;
-  // Normalize MRN: treat empty string as NULL (your unique index ignores NULL/blank anyway)
-  const mrnNorm = mrn === '' ? null : mrn ?? null;
-
   try {
-    const r = await pool.query(
-      `INSERT INTO patients
-         (first_name, last_name, dob, insurance_id, provider_id, mrn, identifiers)
-       VALUES
-         ($1, $2, $3, $4, $5, $6, $7::jsonb)
-       RETURNING
-         id, first_name, last_name, dob, insurance_id, created_at,
-         provider_id, mrn, identifiers`,
-      [
-        first_name,
-        last_name,
-        dob ?? null,
-        insurance_id ?? null,
-        providerIdNum,
-        mrnNorm,
-        asJsonb(identifiers),
-      ]
-    );
-    res.json({ ok: true, data: r.rows[0] });
-  } catch (e) {
-    if (e.code === '23505') {
-      // raised by the partial unique index on MRN when a duplicate non-blank value is inserted
-      return res.status(409).json({ ok: false, error: 'MRN already in use' });
+    const { is_walk_in, ...patientData } = req.body;
+
+    if (is_walk_in) {
+      // Use the complete walk-in flow
+      const result = await PatientManagementService.createWalkInPatient(
+        patientData,
+        req.user.id
+      );
+
+      res.json({
+        ok: true,
+        message: 'Walk-in patient created successfully',
+        data: result
+      });
+    } else {
+      // Regular patient creation (implement if needed)
+      // For now, create patient without encounter/appointment
+      const client = await pool.connect();
+      try {
+        const mrn = await PatientManagementService.generateMRN();
+        const result = await client.query(
+          `INSERT INTO patients (mrn, first_name, last_name, dob, gender, phone)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+          [mrn, patientData.first_name, patientData.last_name,
+           patientData.dob, patientData.gender, patientData.phone]
+        );
+        res.json({ ok: true, data: result.rows[0] });
+      } finally {
+        client.release();
+      }
     }
-    console.error('[patients:create]', e);
-    res.status(500).json({ ok: false, error: 'Database error' });
+  } catch (error) {
+    console.error('Error creating patient:', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
 /* ---------- Update patient (partial) ---------- */
-router.put('/patients/:id', authenticateToken, checkPermission('patients:write'), 
+router.put('/patients/:id', authenticateToken, checkPermission('patients:write'),
+  auditPHIAccess({ resourceType: 'patient', action: 'UPDATE', failOnAuditError: true }), 
   invalidateCache('patients', ['emr:patients:*', 'emr:patient-demographics:*']), async (req, res) => {
   const id = toInt(req.params.id);
   if (!Number.isFinite(id)) {
@@ -243,7 +241,8 @@ router.put('/patients/:id', authenticateToken, checkPermission('patients:write')
 });
 
 /* ---------- Delete patient ---------- */
-router.delete('/patients/:id', authenticateToken, checkPermission('patients:delete'), async (req, res) => {
+router.delete('/patients/:id', authenticateToken, checkPermission('patients:delete'),
+  auditPHIAccess({ resourceType: 'patient', action: 'DELETE', failOnAuditError: true }), async (req, res) => {
   const id = toInt(req.params.id);
   if (!Number.isFinite(id)) {
     return res.status(400).json({ ok: false, error: 'Invalid id' });
@@ -254,6 +253,40 @@ router.delete('/patients/:id', authenticateToken, checkPermission('patients:dele
   } catch (e) {
     console.error('[patients:delete]', e);
     res.status(500).json({ ok: false, error: 'Database error' });
+  }
+});
+
+/* ---------- Create encounter for existing patient (walk-in) ---------- */
+router.post('/patients/:id/encounters', authenticateToken, checkPermission('encounters:create'),
+  auditPHIAccess({ resourceType: 'encounter', action: 'CREATE', failOnAuditError: true }), async (req, res) => {
+  try {
+    const patientId = toInt(req.params.id);
+    if (!Number.isFinite(patientId)) {
+      return res.status(400).json({ ok: false, error: 'Invalid patient ID' });
+    }
+
+    const { chief_complaint, triage_priority } = req.body;
+    if (!chief_complaint) {
+      return res.status(400).json({ ok: false, error: 'chief_complaint is required' });
+    }
+
+    const result = await PatientManagementService.createEncounterForExistingPatient(
+      patientId,
+      chief_complaint,
+      req.user.id
+    );
+
+    res.json({
+      ok: true,
+      message: 'Encounter created and patient added to queue',
+      data: result
+    });
+  } catch (error) {
+    console.error('[patients:create-encounter]', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 

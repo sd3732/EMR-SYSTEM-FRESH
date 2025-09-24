@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/rbac.js';
+import { auditPHIAccess, auditSearchOperation } from '../middleware/phiAuditMiddleware.js';
 
 const router = Router();
 
@@ -13,7 +14,9 @@ const router = Router();
  */
 
 /* Search medications database */
-router.get('/medications/search', authenticateToken, checkPermission('medications:read'), async (req, res) => {
+router.get('/medications/search', authenticateToken, checkPermission('medications:read'),
+  auditPHIAccess({ resourceType: 'medication', action: 'SEARCH', failOnAuditError: true }),
+  auditSearchOperation('medication'), async (req, res) => {
   try {
     const { 
       q: query = '', 
@@ -144,7 +147,8 @@ router.get('/medications/search', authenticateToken, checkPermission('medication
 });
 
 /* Get medication details by ID */
-router.get('/medications/:id', authenticateToken, checkPermission('medications:read'), async (req, res) => {
+router.get('/medications/:id', authenticateToken, checkPermission('medications:read'),
+  auditPHIAccess({ resourceType: 'medication', action: 'VIEW', failOnAuditError: true }), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) {
@@ -181,7 +185,8 @@ router.get('/medications/:id', authenticateToken, checkPermission('medications:r
 });
 
 /* Get drug classes for filtering */
-router.get('/medications/classes', authenticateToken, checkPermission('medications:read'), async (req, res) => {
+router.get('/medications/classes', authenticateToken, checkPermission('medications:read'),
+  auditPHIAccess({ resourceType: 'medication', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -205,7 +210,8 @@ router.get('/medications/classes', authenticateToken, checkPermission('medicatio
 });
 
 /* Get dosage forms for filtering */
-router.get('/medications/forms', authenticateToken, checkPermission('medications:read'), async (req, res) => {
+router.get('/medications/forms', authenticateToken, checkPermission('medications:read'),
+  auditPHIAccess({ resourceType: 'medication', action: 'LIST', failOnAuditError: true }), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
